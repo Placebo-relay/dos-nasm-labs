@@ -2,6 +2,16 @@
 
 🔧 **Dos-box NASM code** for compiling into `.com` files in DOS-box via NASM
 
+## License
+
+This project is licensed under the GNU General Public License (GPL) version 2.0 or later. 
+
+This project also includes NASM, which is licensed under the 2-clause BSD license. 
+
+### Licenses
+
+- **DOSBox**: GPL-2.0-or-later
+- **NASM**: 2-clause BSD
 ---
 
 ## 📋 Tasks Overview
