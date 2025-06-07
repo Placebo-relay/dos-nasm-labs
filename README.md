@@ -21,7 +21,7 @@
    - File: `starg.asm`  
 4. 🚀 Try to implement a version of the program with **two-digit numbers**.
 
-#---
+---
 
 ### **2.3 Basic Calculator**  
 `calc.asm` (with validation)  
