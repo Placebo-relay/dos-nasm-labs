@@ -204,6 +204,7 @@ section .data
 # 2.5 Get Date (0x2a)
 1. mov ah, 0x2a
 ```nasm
+; Listing 2.5 GetDate + added newline
 org 0x100
 
 mov ah, 0x2a ; Функция GetDate
