@@ -59,7 +59,7 @@ mov ah, 0x02    ; Call Console IO function io 0x06 vs o 0x02
 mov dl, 73     ; I 73 0x49
 int 0x21        ; Call DOS interrupt
 
-mov dl, "'"     ; apostrophe 39 0x27
+mov dl, 0x27     ; apostrophe 39 0x27
 int 0x21        ; Call DOS interrupt
 
 mov dl, 'm'     ; m 109 0x6D
