@@ -4,8 +4,8 @@
 
 ## License
 
-This project is licensed under the GNU General Public License (GPL) version 2.0 or later. 
-
+This project is licensed under the GNU General Public License (GPL) version 3.0. 
+This project includes DOS-BOX, which is of the GNU General Public License (GPL) version 2.0 or later.
 This project also includes NASM, which is licensed under the 2-clause BSD license. 
 
 ### Licenses
