@@ -22,4 +22,11 @@ todo:
 1. Enhance the program with input validation checks. For certainty, we will consider that the numbers should not exceed 4.
 # 2.4 calculator two-digit numbers calc2.asm
 1. Enhance the program with input validation checks.
-# 
+# 2.5 Get Date (0x2a)
+1. mov ah, 0x2a
+# 3.1
+1. s
+# 3.1
+1. s
+# 3.1
+1.
