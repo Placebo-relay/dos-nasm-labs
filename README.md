@@ -27,7 +27,7 @@ mov dl, 'A'     ; Character to output (ASCII 0x41)
 
 int 0x21        ; Call DOS interrupt
 
-int 0x20        ; Exit program || ret = return to caller
+ret      ; Exit program int 0x20  || ret = return to caller
 ```
 
 1. ✍️ Display **your name** on the screen.  
