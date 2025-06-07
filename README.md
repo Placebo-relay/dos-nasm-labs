@@ -349,6 +349,80 @@ The last line should be: "И никого не стало".
 # 3.7 draw via mouse BIOS 0x00 0x33 0x10
 1. draw w mouse
 # 3.8 RTC (RealTime Clock) 0x0B port 0x70
+```nasm
+; Listing 3.8
+org 0x100
+
+mov al, 0x0b ;0x0B-управляющий регистр RTC
+out 0x70, al ;Выбираем этот регистр для чтения, порт 0x70
+
+in al, 0x71 ;Читаем значение регистра
+and al, 0b11111011 ;Обнуляем второй бит полученного значения, т.е.
+;задаем BCD-формат для вывода даты и времени
+
+out 0x71, al ;Отправляем RTC обновленные настройки
+
+;Далее следует серия запросов к RTC с выводом
+;полученных данных на экран.
+
+mov al, 0x07 ;Номер текущего дня
+call print_rtc
+
+mov al, '-' ;Символ-разделитель
+int 0x29 ;Используем быстрый вывод на экран
+
+mov al, 0x08 ;Номер текущего месяца
+call print_rtc
+
+mov al, '-' ;Символ-разделитель
+int 0x29 ;Используем быстрый вывод на экран
+
+mov al, 0x32 ;Две старшие цифры года
+call print_rtc
+
+mov al, 0x09 ;Две младшие цифры года
+call print_rtc
+
+mov al, '' ;Символ-разделитель
+int 0x29 ;Используем быстрый вывод на экран
+
+mov al, 0x04 ;Текущий час
+call print_rtc
+
+mov al, ':' ;Символ-разделитель
+int 0x29 ;Используем быстрый вывод на экран
+
+mov al, 0x02 ;Текущая минута
+call print_rtc
+
+mov al, ':' ;Символ-разделитель
+int 0x29 ;Используем быстрый вывод на экран
+
+mov al, 0x00 ;Текущая секунда
+call print_rtc
+
+ret
+
+print_rtc:
+
+out 0x70, al ;Делаем запрос к RTC
+in al, 0x71 ;Получаем ответ
+
+push ax ;Запоминаем значение ax перед модификацией
+
+shr al, 4 ;Выделяем старшие 4 бита ответа
+add al, '0' ;Коррекция результата перед выводом
+int 0x29 ;Используем быстрый вывод на экран
+
+pop ax
+
+and al, 0x0f ;Выделяем младшие 4 бита
+add al, '0' ;Коррекция результата перед выводом
+int 0x29 ;Используем быстрый вывод на экран
+
+ret
+
+```
 1. Develop a program that continuously displays the current time on the screen.
 2. Develop a timer program. The user inputs the number of seconds via the keyboard, and the program should terminate after that amount of time.
 
