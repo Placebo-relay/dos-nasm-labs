@@ -1,3 +1,4 @@
+; PRESS C FOR COUNT
 [org 0x0100]
 jmp start
 
@@ -10,7 +11,7 @@ cms:        dw 0                        ; countdown milliseconds
 cdt:        db 0                        ; countdown timer on/off flag
 oldkb:      dd 0                        ; old keyboard interrupt vector
 input_buf:  times 6 db 0                ; buffer for user input
-prompt:     db 'Enter seconds (1-3599): $' ; input prompt
+prompt:     db 'Press C to start after: please enter seconds (1-3599): $'
 
 ;---------------------------------------;
 
@@ -36,34 +37,51 @@ printLayout:
     mov ax, 0xB800
     mov es, ax
     
-    ; Print "COUNTDOWN TIMER" title at center top
-    mov di, 160*2 + 60  ; row 2, column 60 (centered)
-    mov si, title
-    mov cx, 15          ; length of title
-    mov ah, 0x07        ; attribute
+    ; Print "COUNTDOWN TIMER" title
+    mov di, 260
+    mov byte[es:di], 'C'
+    mov byte[es:di+2], 'O'
+    mov byte[es:di+4], 'U'
+    mov byte[es:di+6], 'N'
+    mov byte[es:di+8], 'T'
+    mov byte[es:di+10], 'D'
+    mov byte[es:di+12], 'O'
+    mov byte[es:di+14], 'W'
+    mov byte[es:di+16], 'N'
+    mov byte[es:di+18], ' '
+    mov byte[es:di+20], 'T'
+    mov byte[es:di+22], 'I'
+    mov byte[es:di+24], 'M'
+    mov byte[es:di+26], 'E'
+    mov byte[es:di+28], 'R'
+	mov byte[es:di+30], ' '
+	mov byte[es:di+32], 'k'
+	mov byte[es:di+34], 'e'
+	mov byte[es:di+36], 'y'
+	mov byte[es:di+38], '-'
+	mov byte[es:di+40], 'C'
     
-title_loop:
-    lodsb
-    stosw
-    loop title_loop
-    
-    ; Print time labels below the title
-    mov di, 160*4 + 60  ; row 4, column 60
-    mov si, time_labels
-    mov cx, 33          ; length of labels
-    mov ah, 0x07
-    
-labels_loop:
-    lodsb
-    stosw
-    loop labels_loop
+    ; Print time labels
+    mov di, 420
+    mov byte[es:di], 'H'
+    mov byte[es:di+2], 'R'
+    mov byte[es:di+4], 'S'
+    mov byte[es:di+8], ':'
+    mov byte[es:di+12], 'M'
+    mov byte[es:di+14], 'I'
+    mov byte[es:di+16], 'N'
+    mov byte[es:di+20], ':'
+    mov byte[es:di+24], 'S'
+    mov byte[es:di+26], 'E'
+    mov byte[es:di+28], 'C'
+    mov byte[es:di+32], ':'
+    mov byte[es:di+36], 'M'
+    mov byte[es:di+38], 'L'
+    mov byte[es:di+40], 'S'
     
     pop es
     popa
     ret
-
-title: db 'COUNTDOWN TIMER'
-time_labels: db 'HRS  :  MIN  :  SEC  :  MLS'
 
 ;---------------------------------------;
 
@@ -119,26 +137,39 @@ printTime:
     mov es, ax
     mov di, [bp+4]      ; video mem offset
     
-    ; print hours (aligned under "HRS")
+    ; print hours
     push word [bp+6]    ; hours
+    add di, 2
     push di
     call printstr
     
-    ; print minutes (aligned under "MIN")
+    ; print colon
+    add di, 8
+    mov byte [es:di], ':'
+    
+    ; print minutes
     push word [bp+8]    ; minutes
-    add di, 10          ; move to MIN position
+    add di, 4
     push di
     call printstr
     
-    ; print seconds (aligned under "SEC")
+    ; print colon
+    add di, 8
+    mov byte [es:di], ':'
+    
+    ; print seconds
     push word [bp+10]   ; seconds
-    add di, 10          ; move to SEC position
+    add di, 4
     push di
     call printstr
     
-    ; print milliseconds (aligned under "MLS")
+    ; print colon
+    add di, 8
+    mov byte [es:di], ':'
+    
+    ; print milliseconds
     push word [bp+12]   ; milliseconds
-    add di, 10          ; move to MLS position
+    add di, 4
     push di
     call printstr
     
@@ -149,12 +180,13 @@ printTime:
 
 ;---------------------------------------;
 
+
 kbisr:
     push ax
     in al, 0x60         ; read keyboard scan code
-    
+
     ; Check for 'C' key (scan code 0x2E when released)
-    cmp al, 174         ; 0xAE - 0x80 = 0x2E
+    cmp al, 174        ; 0xAE - 0x80 = 0x2E 0x9C 174
     jne oldKbHandler
     
     ; Don't allow starting if timer is already at 0
@@ -171,7 +203,8 @@ kbisr:
     ; Start countdown
     mov byte [cs:cdt], 1
     jmp EOI1
-    
+	   
+
 cdt_stop:
     ; Stop countdown
     mov byte [cs:cdt], 0
@@ -194,12 +227,12 @@ countdownTimer:
     
     call printLayout
     
-    ; Print current countdown time (aligned under labels)
+    ; Print current countdown time
     push word [cs:cms]
     push word [cs:csec]
     push word [cs:cmin]
     push word [cs:chrs]
-    push 160*5 + 60     ; row 5, column 60 (under labels)
+    push 738           ; video mem offset for display !!!738=perfect
     call printTime
     
     ; Only update if countdown is active
@@ -271,6 +304,7 @@ timerEOI:
     out 0x20, al        ; send EOI to PIC
     pop es
     popa
+	
     iret
 
 ;---------------------------------------;
