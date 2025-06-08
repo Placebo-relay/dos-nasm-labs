@@ -1,343 +1,532 @@
-org 0x100
+[org 0x0100]
 
-jmp start
+	jmp start
 
-;---------------------------------------;
-; Data Section
-;---------------------------------------;
 
-hours:      dw 0
-minutes:    dw 0
-seconds:    dw 0
+;Orignal Time
+hrs:	dw 0
+min:	dw 0
+s:		dw 0
+ms:		dw 0
 
-splits:     times 10 dw 0,0,0  ; Array for 10 splits (hr,min,sec each)
-split_count db 0
-split_pos   db 6               ; Starting row for splits display
 
-old_kb_vec: dd 0               ; Keyboard interrupt vector
-old_timer:  dd 0               ; Timer interrupt vector
+;Lap Time 
+lhrs:	dw 0
+lmin:	dw 0
+ls:		dw 0
+lms: 	dw 0
 
-;---------------------------------------;
-; Clear Screen
-;---------------------------------------;
 
-clrscr:
-    pusha
-    push es
-    
-    mov ax, 0xB800
-    mov es, ax
-    xor di, di
-    mov ax, 0x0720      ; Space with gray on black
-    mov cx, 2000        ; 80x25 characters
-    
-    cld
-    rep stosw
-    
-    pop es
-    popa
-    ret
+oldkb:	dd 0 							;For the purpose of saving the old keyboard ISR
 
-;---------------------------------------;
-; Print Time Labels
-;---------------------------------------;
 
-print_labels:
-    pusha
-    push es
-    
-    mov ax, 0xB800
-    mov es, ax
-    mov di, 160         ; Start at line 1
-    
-    ; Print "CURRENT TIME: HRS:MIN:SEC"
-    mov si, time_label
-    mov cx, time_label_len
-    
-print_label_loop:
-    mov al, [si]
-    mov [es:di], al
-    add di, 2
-    inc si
-    loop print_label_loop
-    
-    pop es
-    popa
-    ret
+;Flags for Modes
+sMode:	db 0
+lMode:	db 0
 
-time_label db 'CURRENT TIME: HRS:MIN:SEC'
-time_label_len equ $ - time_label
 
-;---------------------------------------;
-; Print 2-digit Number
-;---------------------------------------;
+;Flags for other functions
+startTimer:  db 0
+snapshot:    db 0
+lapTime:     db 0
 
-print_num:
-    push bp
-    mov bp, sp
-    pusha
-    push es
-    
-    mov ax, 0xB800
-    mov es, ax
-    mov di, [bp+4]      ; Screen position
-    mov ax, [bp+6]      ; Number to print
-    
-    mov bl, 10
-    div bl              ; AL = quotient, AH = remainder
-    
-    ; Print tens digit
-    add al, '0'
-    mov [es:di], al
-    add di, 2
-    
-    ; Print units digit
-    add ah, '0'
-    mov [es:di], ah
-    
-    pop es
-    popa
-    pop bp
-    ret 4
 
-;---------------------------------------;
-; Print Current Time (HH:MM:SS)
-;---------------------------------------;
+location:	db 6
 
-print_time:
-    pusha
-    
-    ; Calculate screen position (line 3)
-    mov ax, 80 * 2 * 2  ; 2 lines down (0=first line), 2 bytes per char
-    push ax
-    
-    ; Print hours
-    push word [hours]
-    push ax
-    call print_num
-    
-    ; Print colon
-    mov bx, 0xB800
-    mov es, bx
-    add ax, 6
-    mov di, ax
-    mov byte [es:di], ':'
-    
-    ; Print minutes
-    push word [minutes]
-    add ax, 2
-    push ax
-    call print_num
-    
-    ; Print colon
-    add ax, 6
-    mov di, ax
-    mov byte [es:di], ':'
-    
-    ; Print seconds
-    push word [seconds]
-    add ax, 2
-    push ax
-    call print_num
-    
-    popa
-    ret
+			 
+;------------------------------------------------------------------------------------------------------------------		 
 
-;---------------------------------------;
-; Print All Splits
-;---------------------------------------;
+;Clear Screen Sub Routine 
 
-print_splits:
-    pusha
-    
-    mov cl, [split_count]
-    test cl, cl
-    jz no_splits
-    
-    mov ch, 0
-    mov si, splits
-    
-split_loop:
-    ; Calculate screen position
-    mov al, [split_pos]
-    sub al, cl
-    mov bl, 80 * 2      ; 80 columns * 2 bytes
-    mul bl              ; AX = row offset
-    add ax, 160         ; Start below main timer
-    
-    ; Print split number
-    push ax
-    mov bx, 0xB800
-    mov es, bx
-    mov di, ax
-    mov al, '0'
-    add al, [split_count]
-    sub al, cl
-    mov [es:di], al
-    add di, 4
-    mov byte [es:di], ':'
-    
-    ; Print split time
-    push word [si+4]    ; sec
-    push word [si+2]    ; min
-    push word [si]      ; hr
-    add ax, 6
-    push ax
-    call print_time
-    
-    add si, 6           ; Next split entry (6 bytes per split)
-    loop split_loop
-    
-no_splits:
-    popa
-    ret
+clrscr:		pusha
+			push es
+			
+			mov ax, 0xb800
+			mov es, ax
+			xor di, di
+			mov ax, 0x720
+			mov cx, 2000
+			
+			cld
+			rep stosw
+			
+			pop es
+			popa
+			ret
 
-;---------------------------------------;
-; Keyboard Interrupt Handler
-;---------------------------------------;
+;-------------------------------------------------------------------------------------------------------------------
+			
+;Print the Main Layout		
 
-kbisr:
-    push ax
-    in al, 0x60         ; Read keyboard scan code
-    
-    ; SPACE = record split
-    cmp al, 0x39        
-    jne check_esc
-    
-    ; Add split if < 10
-    mov al, [split_count]
-    cmp al, 10
-    jae kb_done
-    
-    ; Store current time in splits array
-    mov bl, 6           ; 6 bytes per split (hr,min,sec)
-    mul bl
-    mov si, splits
-    add si, ax
-    
-    mov ax, [hours]
-    mov [si], ax
-    mov ax, [minutes]
-    mov [si+2], ax
-    mov ax, [seconds]
-    mov [si+4], ax
-    
-    inc byte [split_count]
-    jmp kb_done
-    
-check_esc:
-    ; ESC = exit program
-    cmp al, 0x01        
-    jne old_kb_handler
-    
-    ; Restore original interrupts
-    cli
-    mov ax, 0
-    mov es, ax
-    mov ax, [old_kb_vec]
-    mov [es:9*4], ax
-    mov ax, [old_kb_vec+2]
-    mov [es:9*4+2], ax
-    
-    mov ax, [old_timer]
-    mov [es:8*4], ax
-    mov ax, [old_timer+2]
-    mov [es:8*4+2], ax
-    sti
-    
-    ; Terminate
-    mov ax, 0x4C00
-    int 0x21
-    
-old_kb_handler:
-    pop ax
-    jmp far [cs:old_kb_vec]
+printLayout:	pusha
+				push es
+				
+				mov ax, 0xB800
+				mov es, ax
+				
+				mov di, 160
+				
+				mov byte[es:di+0], 'H'
+				mov byte[es:di+2], 'R'
+				mov byte[es:di+4], 'S'
+				
+				mov byte[es:di+8], ':'
 
-kb_done:
-    mov al, 0x20
-    out 0x20, al
-    pop ax
-    iret
+				mov byte[es:di+12], 'M'
+				mov byte[es:di+14], 'I'
+				mov byte[es:di+16], 'N'
 
-;---------------------------------------;
-; Timer Interrupt Handler (18.2 Hz)
-;---------------------------------------;
+				mov byte[es:di+20], ':'
+				
+				mov byte[es:di+24], 'S'
+				
+				mov byte[es:di+28], ':'
 
-timer_isr:
-    pusha
-    push ds
-    push es
-    
-    ; Set DS to our code segment
-    mov ax, cs
-    mov ds, ax
-    
-    ; Update time (18.2 interrupts/second)
-    inc word [seconds]
-    cmp word [seconds], 60
-    jb update_display
-    
-    ; Minute rollover
-    mov word [seconds], 0
-    inc word [minutes]
-    cmp word [minutes], 60
-    jb update_display
-    
-    ; Hour rollover
-    mov word [minutes], 0
-    inc word [hours]
+				mov byte[es:di+34], 'M'
+				mov byte[es:di+36], 'S'
+				
+				pop es
+				popa
+				ret
+			
+;-------------------------------------------------------------------------------------------------------------------				
+				
+				
+				
+				
+						
+;-------------------------------------------------------------------------------------------------------------------				
+				
+;Keyboard ISR		
 
-update_display:
-    call clrscr
-    call print_labels
-    call print_time
-    call print_splits
-    
-    ; End of interrupt
-    mov al, 0x20
-    out 0x20, al
-    
-    pop es
-    pop ds
-    popa
-    iret
+kbisr:		    push ax
 
-;---------------------------------------;
-; Main Program
-;---------------------------------------;
+			    in  al, 0x60
+			    
+			    ;Checking release code only
 
-start:
-    ; Save original interrupt vectors
-    mov ax, 0
-    mov es, ax
-    mov ax, [es:9*4]
-    mov [old_kb_vec], ax
-    mov ax, [es:9*4+2]
-    mov [old_kb_vec+2], ax
-    
-    mov ax, [es:8*4]
-    mov [old_timer], ax
-    mov ax, [es:8*4+2]
-    mov [old_timer+2], ax
-    
-    ; Install new interrupt handlers
-    cli
-    mov word [es:9*4], kbisr
-    mov [es:9*4+2], cs
-    mov word [es:8*4], timer_isr
-    mov [es:8*4+2], cs
-    sti
-    
-    ; Initialize display
-    call clrscr
-    call print_labels
-    call print_time
-    
-    ; Terminate and stay resident
-    mov dx, start       ; Start address
-    add dx, 15          ; Round up
-    mov cl, 4
-    shr dx, cl          ; Convert bytes to paragraphs (divide by 16)
-    add dx, 16          ; Add PSP size (256 bytes = 16 paragraphs)
-    mov ax, 0x3100
-    int 0x21
+			    cmp al, 147			;checking for 'R'
+			    jz  reset
+				jnz modChanger
+			   
+			   
+reset:			;Resetting the orginal time
+
+				mov word [cs:hrs], 0
+				mov word [cs:min], 0
+				mov word [cs:s], 0
+				mov word [cs:ms], 0
+
+				;Resetting the lap time
+				
+				mov word [cs:lhrs], 0
+				mov word [cs:lmin], 0
+				mov word [cs:ls], 0
+				mov word [cs:lms], 0
+
+				call clrscr
+
+				mov byte [cs:location], 6
+
+				jmp EOI1
+							
+
+
+modChanger:		cmp al, 170						;Release code of Shift Left
+				jnz checkLMode1
+			
+				mov byte [cs:lMode], 0			;Disable the lap mode
+				
+				cmp byte [cs:sMode], 1			;If sMode was already enabled then do nothing
+				jz EOI1
+				
+				mov byte [cs:sMode], 1			;Else enable the sMode
+				jmp EOI1
+			
+checkLMode1:	cmp al, 182						;Release code of Shift Right
+				jnz startTime
+				
+				mov byte [cs:sMode], 0			;Disable the split Mode
+				
+				cmp byte [cs:lMode], 1			;If lMode was aleady enabled then do nothing
+				jz  EOI1
+				
+				mov byte [cs:lMode], 1			;Else enable the lMode
+				jmp EOI1
+				
+				
+
+;Scenarios when space key is released
+
+startTime:		cmp al, 185
+				jnz oldKbHandler
+				
+				cmp byte [cs:startTimer], 1		;If Timer is already started then do nothing
+				jz  check0
+				
+				mov byte [cs:startTimer], 1 	;Else start the timer 
+
+check0:			cmp byte [cs:sMode], 1 			;If split mode is enabled
+				jnz  check1
+
+				mov byte [cs:snapshot], 1
+				jmp EOI1
+
+check1:			cmp byte [cs:lMode], 1   		;Else if the lap mode is enabled
+				jnz EOI1
+
+				mov byte [cs:lapTime], 1
+				jmp EOI1
+
+
+				
+EOI1:			mov al, 0x20 					;End of Interrupt Signal
+				out 0x20,al
+				
+				pop ax
+				iret
+				
+
+;Rest of the Keyboard keys are handled by the old keyboard ISR
+oldKbHandler:	pop ax
+				jmp far [cs:oldkb]
+
+
+;-------------------------------------------------------------------------------------------------------------------
+
+;-------------------------------------------------------------------------------------------------------------------
+
+
+;To print the number on screen
+
+printstr:	push bp
+			mov bp, sp
+			pusha
+			
+			push es
+			
+			mov ax, 0xb800
+			mov es, ax
+			
+			mov di, [bp+4]					;Location
+			mov ax, [bp+6]					;Number
+			
+			mov bx, 10
+			mov cx, 0
+			
+
+nextdigit:	mov dx, 0
+			div bx
+			add dl, 0x30
+			push dx
+			inc cx
+			cmp ax, 0
+			jnz nextdigit
+			
+			cmp cx, 1
+			jnz nextpos
+			mov byte [es:di], '0'
+			add di, 2
+			
+			
+nextpos:	pop dx
+			mov dh, 0x07
+			mov [es:di], dx
+			add di, 2
+			loop nextpos
+			
+			pop es
+			popa
+			pop bp
+			ret 4
+
+
+;-------------------------------------------------------------------------------------------------------------------
+
+
+;Function which prints the time on screen
+
+printTime:	push bp
+			mov bp,sp
+			pusha
+
+			push es
+
+			mov ax, 0xB800
+			mov es, ax
+
+			mov di, [bp+4]					;Location where the time is to be printed
+
+			;Printing hours
+			push word [bp+6]
+			add di, 2
+			push di
+			call printstr
+			
+
+			;Printing Colon
+			add di, 6
+			mov byte [es:di], ':'
+
+
+			;Printing minutes
+			push word [bp+8]
+			add di, 6
+			push di
+			call printstr
+			
+
+			;Printing Colon
+			add di, 6
+			mov byte [es:di], ':'
+
+
+			;Printing seconds
+			push word [bp+10]
+			add di, 2
+			push di
+			call printstr
+			
+
+			;Printing Colon
+			add di, 6
+			mov byte [es:di], ':'
+
+
+			;Printing milli seconds
+			push word [bp+12]
+			add di, 2
+			push di
+			call printstr
+
+			pop es
+
+			popa
+			pop bp
+			ret 10
+
+
+;-------------------------------------------------------------------------------------------------------------------
+		
+
+
+;Shift Left for Split Mode
+;Shift Right for Lap Mode
+				
+				
+				
+ stopWatch:	pusha
+			push es
+			
+			call printLayout
+			
+		
+			push word [cs:ms]
+			push word [cs:s]
+			push word [cs:min]
+			push word [cs:hrs]	
+
+			push 480
+			call printTime
+				
+			cmp byte [cs:startTimer], 1
+			jnz dEOI							;Using two jumps because of the short range of near jump
+
+
+			
+			
+changeTime:	add word [cs:ms], 55
+			cmp word[cs:ms], 1000
+			jle modCheck
+			
+			mov word [cs:ms], 0
+			inc word[cs:s]
+			cmp word [cs:s], 60
+			jnz modCheck
+			
+			mov word [cs:s], 0
+			inc word[cs:min]
+			cmp word [cs:min], 60
+			jnz modCheck
+			
+			mov word [cs:min], 0
+			inc word[cs:hrs]
+			
+			jmp modCheck
+			
+			
+
+ modCheck:	cmp byte [cs:sMode], 1
+			jz splitMode
+			
+			cmp byte [cs:lMode], 1
+			jz  lapMode
+			
+			jmp EOI
+			
+
+ dEOI:		jmp EOI 					;Using dEOI as an intermediate jump because of the short range of near jump
+
+
+
+
+
+ splitMode:	cmp byte [cs:snapshot], 1
+ 			jnz eEOI						;Going to use two jumps because of the short range of near jump
+
+ 			mov byte [cs:snapshot], 0
+
+ 			push word [cs:ms]
+		    push word [cs:s]
+	 	    push word [cs:min]
+		    push word [cs:hrs]	
+
+ 			;Position Calculation
+ 			mov al, 80
+ 			mul byte [cs:location]
+ 			shl ax, 1
+
+ 			add byte [cs:location], 2
+
+ 			push ax
+ 			call printTime
+
+ 			jmp EOI
+
+			
+
+ eEOI:	   jmp EOI 							;An intermediate jump to EOI
+
+
+ 
+ lapMode:  cmp byte [cs:lapTime], 1
+ 		   jnz xEOI                        ;Using two intermediate jumps because of the short range of near jumps
+
+ 		   mov byte [cs:lapTime], 0
+
+
+ 		   ;Deducting the previos Lap Time from the original time to get the new Lap Time
+
+ 		   ;Making copy of the original Time
+ 		   mov ax, [cs:ms]
+ 		   mov bx, [cs:s]
+ 		   mov cx, [cs:min]
+ 		   mov dx, [cs:hrs]
+
+
+ 		   ;Subtracting the MilliSeconds
+l1:		   sub ax, [cs:lms]
+ 		   cmp ax, 0
+ 		   jge l2
+
+ 		   add ax, 1000 
+ 		   dec bx
+
+l2:	   	   mov [cs:lms],ax
+
+
+ 		   ;Subtracting the Seconds
+		   sub bx, [cs:ls]
+ 		   cmp bx, 0
+ 		   jge l3
+
+ 		   add bx, 60
+ 		   dec cx
+
+l3:		   mov [cs:ls],bx
+
+
+ 		   jmp l4					   ;For skipping the xEOI given below
+
+xEOI:	   jmp EOI                    ;An intermediate jump to EOI
+
+
+   		   ;Subtracting the Minutes
+l4:		   sub cx, [cs:lmin]
+ 		   cmp cx, 0
+ 		   jge l5
+
+ 		   add cx, 60
+ 		   dec dx
+
+l5:		   mov [cs:lmin],cx
+
+
+   		   ;Subtracting the Hours
+ 		   sub dx, [cs:lhrs]
+		   mov [cs:lhrs],dx
+
+ 
+
+ 		   ;After the subtraction is done, print the new lapTime
+
+ 		   push word [cs:lms]
+		   push word [cs:ls]
+	 	   push word [cs:lmin]
+		   push word [cs:lhrs]	
+
+		   ;Position Calculation
+		   mov al, 80
+		   mul byte [cs:location]
+ 		   shl ax, 1
+
+ 		   add byte [cs:location], 2
+
+ 		   push ax
+		   call printTime
+
+		   jmp EOI	
+			
+			
+
+EOI:		mov al, 0x20
+			out 0x20, al
+			
+return:		pop es
+			popa
+			iret
+
+
+;-------------------------------------------------------------------------------------------------------------------	
+		
+
+;Driver Function
+
+start:		 mov ax, 0
+			 mov es, ax
+			
+			
+			 ;Saving the previous keyboard handler routine
+			 mov ax, [es:9*4]
+			 mov [oldkb],ax
+			 mov ax, [es:9*4+2]
+			 mov [oldkb+2], ax
+			
+			
+			 call clrscr
+
+			 ;Hooking the interrupts
+			 
+			 cli
+			 
+			 ;Keyboard Interrupt
+			 mov word [es:9*4], kbisr
+			 mov [es:9*4+2], cs
+			
+			 ;Timer Interrupt
+			 mov word [es:8*4], stopWatch
+			 mov [es:8*4+2], cs
+			 
+			 sti
+			 
+			
+			 ;Making it TSR 
+			 mov dx, start
+			 add dx, 15
+			 mov cl, 4
+			 shr dx, cl
+			 
+			 mov ax, 0x3100
+			 int 21h
+
+;-------------------------------------------------------------------------------------------------------------------	
