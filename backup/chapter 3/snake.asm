@@ -2,7 +2,7 @@
 org 0x100
 
 ; Set graphics mode
-mov ax, 0x0013  ; 320x200, 256 colors
+mov ax, 0x13  ; 320x200, 256 colors
 int 0x10
 
 ; Draw snake + food
