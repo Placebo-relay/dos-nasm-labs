@@ -169,7 +169,99 @@ int 0x21        ; Call DOS interrupt
 
 ret             ; Exit program
 ```
+```
+; chapter 2: print numbers 0-9 with spaces (LOOP VERSION)
+org 0x100
 
+mov ah, 0x02      ; Call Console IO function
+
+; Output numbers 0 to 9
+mov bl, 0         ; Initialize BL to 0 (starting number)
+
+print_loop:
+    ; Convert number in BL to ASCII
+    add bl, '0'    ; Convert to ASCII by adding '0' (48)
+    mov dl, bl     ; Move the ASCII character to DL
+    int 0x21       ; Call DOS interrupt to print character
+
+    ; Print space after each number
+    mov dl, ' '    ; Load space character
+    int 0x21       ; Call DOS interrupt to print space
+
+    ; Prepare for next iteration
+    sub bl, '0'    ; Convert back to integer
+    inc bl         ; Increment number
+    cmp bl, 10     ; Compare with 10
+    jl print_loop  ; Loop if less than 10
+
+; Print carriage return and line feed
+mov dl, 0x0D      ; Carriage return (CR)
+int 0x21          ; Call DOS interrupt
+
+mov dl, 0x0A      ; Line feed (LF)
+int 0x21          ; Call DOS interrupt
+
+ret                ; Exit program
+```
+```
+; chapter 2: print numbers 9-0 with spaces (LOOP VERSION)
+org 0x100
+
+mov ah, 0x02      ; Call Console IO function
+
+; Output numbers 9 to 0
+mov bl, 9         ; Initialize BL to 9 (starting number)
+
+print_loop:
+    ; Convert number in BL to ASCII
+    add bl, '0'    ; Convert to ASCII by adding '0' (48)
+    mov dl, bl     ; Move the ASCII character to DL
+    int 0x21       ; Call DOS interrupt to print character
+
+    ; Print space after each number
+    mov dl, ' '    ; Load space character
+    int 0x21       ; Call DOS interrupt to print space
+
+    ; Prepare for next iteration
+    sub bl, '0'    ; Convert back to integer
+    dec bl         ; Decrement number
+    cmp bl, 0     ; Compare with 0
+    jge print_loop  ; Loop if greater than or equal to 0
+
+; Print carriage return and line feed
+mov dl, 0x0D      ; Carriage return (CR)
+int 0x21          ; Call DOS interrupt
+
+mov dl, 0x0A      ; Line feed (LF)
+int 0x21          ; Call DOS interrupt
+
+ret                ; Exit program
+```
+```
+; Cheat program to print a string of numbers 0->9
+org 0x100
+
+section .data
+myString db '0 1 2 3 4 5 6 7 8 9$' ; String with a dollar sign terminator
+
+section .text
+start:
+    mov ah, 0x09           ; Set function to print string
+    mov dx, myString       ; Load address of the string into DX
+    int 0x21               ; Call DOS interrupt to print the string
+
+    ; Print carriage return and line feed
+    mov dl, 0x0D           ; Carriage return (CR)
+    mov ah, 0x02           ; Set function to print character
+    int 0x21               ; Call DOS interrupt to print CR
+
+    mov dl, 0x0A           ; Line feed (LF)
+    int 0x21               ; Call DOS interrupt to print LF
+
+    ; Properly terminate the program
+    mov ax, 0x4C00         ; Terminate program function (lol can't use ret)
+    int 0x21               ; Call DOS interrupt to terminate
+```
 ### **2.2 I/O Input & Validation**  
 `N=?` — print **0...N** (one per line):  
 - Example: 0, newline, 1, newline, 2, ...  
