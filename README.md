@@ -1063,6 +1063,7 @@ ret
 2. Develop a timer program. The user inputs the number of seconds via the keyboard, and the program should terminate after that amount of time.
 
 ```NASM
+; PRESS C FOR COUNT lol it works now COUNTDOWN TIMER
 [org 0x0100]
 jmp start
 

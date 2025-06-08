@@ -1,3 +1,4 @@
+; PRESS C FOR COUNT
 [org 0x0100]
 jmp start
 
@@ -10,7 +11,7 @@ cms:        dw 0                        ; countdown milliseconds
 cdt:        db 0                        ; countdown timer on/off flag
 oldkb:      dd 0                        ; old keyboard interrupt vector
 input_buf:  times 6 db 0                ; buffer for user input
-prompt:     db 'Enter seconds (1-3599): $' ; input prompt
+prompt:     db 'Press C to start after: please enter seconds (1-3599): $'
 
 ;---------------------------------------;
 
@@ -54,11 +55,11 @@ printLayout:
     mov byte[es:di+26], 'E'
     mov byte[es:di+28], 'R'
 	mov byte[es:di+30], ' '
-	mov byte[es:di+32], '3'
-	mov byte[es:di+34], '.'
-	mov byte[es:di+36], '8'
-	mov byte[es:di+38], '.'
-	mov byte[es:di+40], '2'
+	mov byte[es:di+32], 'k'
+	mov byte[es:di+34], 'e'
+	mov byte[es:di+36], 'y'
+	mov byte[es:di+38], '-'
+	mov byte[es:di+40], 'C'
     
     ; Print time labels
     mov di, 420
