@@ -1,10 +1,10 @@
-; Chap3 3.4.5 input = breadth of line
+; Chap3 3.4.5 input = breadth of line UPDATE: 200~
 org 0x100
 
 section .data
     breadth db 0
-    msg db 'Enter a number (0-255): $'
-    err_msg db 0Dh, 0Ah, 'Invalid input! Please enter a number between 0 and 255.$', 0Dh, 0Ah, '$'
+    msg db 'Enter a number (0-200): $'
+    err_msg db 0Dh, 0Ah, 'Invalid input! Please enter a number between 0 and 200.$', 0Dh, 0Ah, '$'
 
 section .text
 
@@ -66,8 +66,8 @@ read_digit:
     jb read_digit      ; If less than 3, read another digit
 
 finish_input:
-    ; Validate range (0-255)
-    cmp bx, 255
+    ; Validate range (0-255) ::200
+    cmp bx, 200
     ja invalid_input
     
     ; Store the result in breadth
